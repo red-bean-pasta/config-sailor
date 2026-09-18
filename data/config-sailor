@@ -1,0 +1,2 @@
+#!/bin/sh
+exec /opt/config-sailor/bin/config-sailor "$@"

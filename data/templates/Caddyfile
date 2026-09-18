@@ -4,11 +4,11 @@
 
 some.example.com:PORT {
 
-    @config_weaver {
+    @config_sailor {
         path /some-path
     }
 
-    handle @config_weaver {
+    handle @config_sailor {
         reverse_proxy 127.0.0.1:PORT
     }
 

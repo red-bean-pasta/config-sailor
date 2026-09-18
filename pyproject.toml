@@ -1,5 +1,5 @@
 [project]
-name = "config-weaver"
+name = "config-sailor"
 version = "0.4.0"
 description = "A lightweight config distribution service with document-level JSON patching, enabling dynamic, server-side transformation and delivery using minimal, GET-only clients"
 readme = "README.md"
@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [project.scripts]
-config-weaver = "config_weaver.__main__:main"
+config-sailor = "config_sailor.__main__:main"
 
 [build-system]
 requires = ["hatchling"]

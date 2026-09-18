@@ -1,0 +1,29 @@
+[Unit]
+Description=A lightweight config distribution service written in Python, with document-level JSON patching for server-side transformation
+After=network.target
+Wants=network-online.target
+StartLimitBurst=5
+StartLimitIntervalSec=60
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/config-sailor/config-sailor.env
+WorkingDirectory=/opt/config-sailor
+ExecStart=/opt/config-sailor/bin/config-sailor serve
+Restart=on-failure
+RestartSec=5
+
+DynamicUser=yes
+
+StateDirectory=config-sailor
+CacheDirectory=config-sailor
+LogsDirectory=config-sailor
+
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+NoNewPrivileges=true
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+
+[Install]
+WantedBy=multi-user.target

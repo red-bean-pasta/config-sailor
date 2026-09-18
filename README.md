@@ -1,7 +1,7 @@
-# config-weaver
-A lightweight config distribution service written in Python, with document-level JSON patching for server-side transformation.
+# config-sailor
+A lightweight config distribution service written in Python, with server-side document-level JSON patching.
 
-`config-weaver` supports two main workflows:
+`config-sailor` supports two main workflows:
 - **build**: decrypt a base config and apply optional rules locally
 - **serve**: expose a stealthy config endpoint over HTTP(S) that authenticates the caller, decrypts the base config, applies matching patches, and returns the final JSON
 
@@ -12,20 +12,20 @@ It is designed for simple clients that can only do a plain `GET` request and can
 ## Why this exists
 ### Centralized control with customized output
 There are often cases where one wish to manage config file centrally to reduce maintenance burden, while still delivering client-specific customization at request time. 
-`config-weaver` supports this by storing an encrypted base config and applying patch rules when a request is received. 
+`config-sailor` supports this by storing an encrypted base config and applying patch rules when a request is received. 
 
 ### Constrained clients
 Many clients can only make simple `GET` requests but do not support handshake-based protocol. This is especially common for third-party or mobile clients.
-`config-weaver` is designed with this limitation in mind and relies only on standard authentication, headers, and query parameters.
+`config-sailor` is designed with this limitation in mind and relies only on standard authentication, headers, and query parameters.
 
 ### Stealth requirements
 A config distribution endpoint should avoid drawing unnecessary attention.
-`config-weaver` therefore returns `404` with an empty body for any invalid request. This helps obscure the presence of the service.
-`config-weaver` is also designed with timing attacks in mind. Authentication and decryption are handled to keep request processing on a nearly consistent timing path.
+`config-sailor` therefore returns `404` with an empty body for any invalid request. This helps obscure the presence of the service.
+`config-sailor` is also designed with timing attacks in mind. Authentication and decryption are handled to keep request processing on a nearly consistent timing path.
 
 ### Encrypted storage
 The host machine may not always be fully trusted.
-`config-weaver` stores the base config in encrypted form without keeping the encryption key on the host. The key is expected to be supplied by the request. While not an ideal design, this reduces the impact of data-at-rest compromise.
+`config-sailor` stores the base config in encrypted form without keeping the encryption key on the host. The key is expected to be supplied by the request. While not an ideal design, this reduces the impact of data-at-rest compromise.
 
 ---
 
@@ -296,18 +296,18 @@ Available commands:
 ### Debian package (recommended)
 Download the latest `.deb` from GitHub Releases and install it locally:
 ```bash
-url=$(wget -qO- https://api.github.com/repos/red-bean-pasta/config-weaver/releases/latest | grep -o 'https://[^"]*_all\.deb' | head -n1) && file=${url##*/} && wget "$url" && sudo apt install "./$file"
+url=$(wget -qO- https://api.github.com/repos/red-bean-pasta/config-sailor/releases/latest | grep -o 'https://[^"]*_all\.deb' | head -n1) && file=${url##*/} && wget "$url" && sudo apt install "./$file"
 ```
 This method is recommended on Debian-based systems as it also installs the systemd service, environment file, and default configuration files.
 
 ### Install from GitHub with `pip`
 ```bash
-pip install git+https://github.com/red-bean-pasta/config-weaver.git
+pip install git+https://github.com/red-bean-pasta/config-sailor.git
 ```
 
 ### Install from GitHub with `uv`
 ```bash
-uv tool install git+https://github.com/red-bean-pasta/config-weaver.git
+uv tool install git+https://github.com/red-bean-pasta/config-sailor.git
 ```
 
 ---
@@ -315,21 +315,21 @@ uv tool install git+https://github.com/red-bean-pasta/config-weaver.git
 ## Quickstart
 ### 1. Encrypt a base config
 ```bash
-config-weaver encrypt ./base.json ./spec/base.json.enc
+config-sailor encrypt ./base.json ./spec/base.json.enc
 ```
 ### 2. Generate a credential or token
 ```bash
-config-weaver generate
+config-sailor generate
 ```
 ### 3. Hash credentials for auth rules
 ```bash
-config-weaver hash [my-password]
-config-weaver hash [my-bearer-secret]
+config-sailor hash [my-password]
+config-sailor hash [my-bearer-secret]
 ```
 Put the generated hashes into `auth_rules.json`.
 ### 4. Build locally
 ```bash
-config-weaver build \
+config-sailor build \
   --spec-dir ./spec \
   --user someone \
   --agent some-agent \
@@ -337,7 +337,7 @@ config-weaver build \
 ```
 ### 5. Serve
 ```bash
-config-weaver serve \
+config-sailor serve \
   --spec-dir ./spec \
   --state-dir ./state \
   --host 127.0.0.1 \
@@ -345,7 +345,7 @@ config-weaver serve \
 ```
 Pass extra arguments through to uvicorn after `--`:
 ```bash
-config-weaver serve \
+config-sailor serve \
   --spec-dir ./spec \
   --state-dir ./state \
   --port 8000 \
@@ -354,7 +354,7 @@ config-weaver serve \
 
 See more about each command, use:
 ```bash
-config-weaver -h
+config-sailor -h
 ```
 
 ---
@@ -369,7 +369,7 @@ For production-like environments:
 * use Bearer auth where clients support it
 * pass the decryption key in a header, not a query string
 * keep `unsafe-mode` off
-0
+
 Avoid:
 * exposing the service directly to the internet without a reverse proxy
 * using plain HTTP except in trusted development

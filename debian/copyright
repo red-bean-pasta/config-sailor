@@ -1,6 +1,6 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0
-Source: https://github.com/red-bean-pasta/config-weaver/
-Upstream-Name: config-weaver
+Source: https://github.com/red-bean-pasta/config-sailor/
+Upstream-Name: config-sailor
 
 Files: *
 Copyright: 2026 red-bean-pasta

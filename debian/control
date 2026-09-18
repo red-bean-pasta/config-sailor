@@ -1,8 +1,8 @@
-Source: config-weaver
+Source: config-sailor
 Section: net
 Priority: optional
 Maintainer: red-bean-pasta <red-bean-pasta@outlook.com>
-Homepage: https://github.com/red-bean-pasta/config-weaver
+Homepage: https://github.com/red-bean-pasta/config-sailor
 Build-Depends:
  debhelper-compat (= 13),
  dh-python,
@@ -12,12 +12,12 @@ Build-Depends:
 Standards-Version: 4.7.3
 Rules-Requires-Root: no
 
-Package: config-weaver
+Package: config-sailor
 Architecture: all
 Depends:
  ${misc:Depends}
 Description: JSON config distribution service with rule-based patching
- config-weaver distributes JSON configuration from an encrypted base
+ config-sailor distributes JSON configuration from an encrypted base
  file and applies optional patch rules based on user, client agent,
  and version.
  .

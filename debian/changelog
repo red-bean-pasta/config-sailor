@@ -1,4 +1,4 @@
-config-weaver (0.4.0-1) unstable; urgency=medium
+config-sailor (0.4.0-1) unstable; urgency=medium
 
   * Prompt for decryption key interactively via getpass and drop CLI key args.
   * Improve User-Agent and version parsing robustness.
@@ -7,21 +7,21 @@ config-weaver (0.4.0-1) unstable; urgency=medium
 
  -- red-bean-pasta <red-bean-pasta@outlook.com>  Fri, 04 Sep 2026 16:12:00 +0800
 
-config-weaver (0.3.0-1) unstable; urgency=medium
+config-sailor (0.3.0-1) unstable; urgency=medium
 
   * Add placeholder replacement support.
   * Fix stealth fallback.
 
  -- red-bean-pasta <red-bean-pasta@outlook.com>  Sun, 25 May 2026 20:00:00 +0000
 
-config-weaver (0.2.0-1) unstable; urgency=medium
+config-sailor (0.2.0-1) unstable; urgency=medium
 
   * Refactor patch format.
   * Introduce pydantic.
 
  -- red-bean-pasta <red-bean-pasta@outlook.com>  Sun, 29 Mar 2026 12:00:00 +0000
 
-config-weaver (0.1.0-1) unstable; urgency=medium
+config-sailor (0.1.0-1) unstable; urgency=medium
 
   * Initial package.
 

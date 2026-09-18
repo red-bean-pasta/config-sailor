@@ -1,13 +1,17 @@
 import argparse
 import getpass
+import logging
 import sys
 from pathlib import Path
 
 from config_weaver.config_managing import secret_generator
-from config_weaver.config_managing import encryptor, editor, hasher, builder
+from config_weaver.config_managing import encryptor, editor, hasher, builder, user_manager
 from config_weaver.file_managers.patch_manager import PatchParam
 from config_weaver.network import service_starter
 from config_weaver.utils import json_helper, file_operator
+
+
+logger = logging.getLogger(__name__)
 
 
 def serve(
@@ -63,3 +67,41 @@ def hash(args: argparse.Namespace) -> None:
 
 def generate_secret(args: argparse.Namespace) -> None:
     print(secret_generator.generate(args.length))
+
+
+def user_add(args: argparse.Namespace) -> None:
+    auth_rules_path = user_manager.get_auth_rules_path(args.spec_dir, args.auth_rules)
+    assert auth_rules_path is not None
+    try:
+        hashed, secret = user_manager.add_user_credential(
+            path=auth_rules_path,
+            user=args.user,
+            method=args.method,
+            hashed=args.hash,
+        )
+        if secret:
+            print(f"Generated {args.method} secret for user '{args.user}'")
+            print(f"Credential: {args.user}{':' if args.method == 'basic' else '~'}{secret}")
+        else:
+            print(f"Added {args.method} credential for user '{args.user}'")
+    except Exception as e:
+        logger.error(f"Failed to add user credential: {e}")
+        sys.exit(1)
+
+
+def user_remove(args: argparse.Namespace) -> None:
+    auth_rules_path = user_manager.get_auth_rules_path(args.spec_dir, args.auth_rules)
+    assert auth_rules_path is not None
+    try:
+        user_manager.remove_user_credential(
+            path=auth_rules_path,
+            user=args.user,
+            method=args.method,
+        )
+        if args.method:
+            print(f"Removed {args.method} credential for user '{args.user}'")
+        else:
+            print(f"Removed user '{args.user}'")
+    except Exception as e:
+        logger.error(f"Failed to remove user credential: {e}")
+        sys.exit(1)

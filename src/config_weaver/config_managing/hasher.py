@@ -1,4 +1,4 @@
-from config_weaver.hash.hasher import hash_secret
+from config_weaver.hash.hasher import hash_secret, is_valid_hash
 
 
 def hash(credential: str) -> str:

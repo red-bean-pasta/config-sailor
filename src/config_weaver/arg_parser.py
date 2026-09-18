@@ -30,6 +30,8 @@ def _validate_args(
         error_raiser(f"{args.command}: Unrecognized arguments: {' '.join(passthrough)}")
     if args.command == "serve" and any(not d for d in (args.spec_dir, args.state_dir)):
         error_raiser(f"{args.command}: Parameters --spec-dir and --state-dir are required")
+    if args.command == "user" and not (args.auth_rules or args.spec_dir):
+        error_raiser(f"{args.command}: Parameters --spec-dir or --auth-rules are required")
 
 
 def _setup_parser() -> argparse.ArgumentParser:
@@ -46,8 +48,71 @@ def _setup_parser() -> argparse.ArgumentParser:
     _setup_encrypt_parsers(subparsers)
     _setup_build_parser(subparsers)
     _setup_serve_parser(subparsers)
+    _setup_user_parser(subparsers)
 
     return parser
+
+
+def _setup_user_parser(subparsers):
+    auth_common = argparse.ArgumentParser(add_help=False)
+    auth_common.add_argument(
+        "-d", "--spec-dir",
+        metavar="PATH",
+        default=_env_spec_dir,
+        help=f"Path to the spec directory containing auth_rules.json. Defaults to ${_SPEC_DIR_ENV}")
+    auth_common.add_argument(
+        "-f", "--auth-rules",
+        metavar="PATH",
+        default=None,
+        help="Direct path to auth_rules.json. Takes precedence over --spec-dir")
+
+    user_parser = subparsers.add_parser(
+        "user",
+        help="Manage users and authentication credentials in auth_rules.json",
+        epilog="Use '%(prog)s <action> --help' for more information on a specific action")
+
+    user_subparsers = user_parser.add_subparsers(
+        title="User actions",
+        dest="user_action",
+        required=True)
+
+    add_parser = user_subparsers.add_parser(
+        "add",
+        parents=[auth_common],
+        help="Add or update a verification credential for a user")
+    add_parser.add_argument(
+        "user",
+        metavar="USER",
+        help="Name of the user to add or update")
+    add_parser.add_argument(
+        "method",
+        type=str.lower,
+        choices=["basic", "bearer"],
+        help="Verification method: 'basic' or 'bearer'")
+    add_parser.add_argument(
+        "hash",
+        nargs="?",
+        default=None,
+        metavar="HASH",
+        help="Pre-computed Argon2 hash. If omitted, a random secret is generated automatically and its plaintext is printed")
+    add_parser.set_defaults(func=arg_funcs.user_add)
+
+    remove_parser = user_subparsers.add_parser(
+        "remove",
+        parents=[auth_common],
+        help="Remove a user or a specific verification method for a user")
+    remove_parser.add_argument(
+        "user",
+        metavar="USER",
+        help="Name of the user to remove")
+    remove_parser.add_argument(
+        "method",
+        nargs="?",
+        default=None,
+        type=str.lower,
+        choices=["basic", "bearer"],
+        help="Verification method to remove ('basic' or 'bearer'). If omitted, the entire user entry is removed")
+    remove_parser.set_defaults(func=arg_funcs.user_remove)
 
 
 def _setup_serve_parser(subparsers):

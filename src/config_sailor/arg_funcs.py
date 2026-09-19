@@ -70,8 +70,7 @@ def generate_secret(args: argparse.Namespace) -> None:
 
 
 def user_add(args: argparse.Namespace) -> None:
-    auth_rules_path = user_manager.get_auth_rules_path(args.spec_dir, args.auth_rules)
-    assert auth_rules_path is not None
+    auth_rules_path = user_manager.get_auth_rules_path(args.path)
     try:
         hashed, secret = user_manager.add_user_credential(
             path=auth_rules_path,
@@ -90,8 +89,7 @@ def user_add(args: argparse.Namespace) -> None:
 
 
 def user_remove(args: argparse.Namespace) -> None:
-    auth_rules_path = user_manager.get_auth_rules_path(args.spec_dir, args.auth_rules)
-    assert auth_rules_path is not None
+    auth_rules_path = user_manager.get_auth_rules_path(args.path)
     try:
         user_manager.remove_user_credential(
             path=auth_rules_path,

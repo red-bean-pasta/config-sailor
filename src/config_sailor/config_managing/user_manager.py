@@ -11,15 +11,15 @@ from config_sailor.utils import file_operator, json_helper
 logger = logging.getLogger(__name__)
 
 
-def get_auth_rules_path(
-    spec_dir: str | Path | None = None,
-    auth_rules_path: str | Path | None = None,
-) -> Path | None:
-    if auth_rules_path:
-        return Path(auth_rules_path)
-    if spec_dir:
-        return Path(spec_dir) / manager_helper.SpecFile.AUTH
-    return None
+def get_auth_rules_path(path: str | Path) -> Path:
+    p = Path(path)
+    if p.is_file():
+        return p
+    if p.is_dir():
+        return p / manager_helper.SpecFile.AUTH
+    if p.suffix == ".json":
+        return p
+    return p / manager_helper.SpecFile.AUTH
 
 
 def add_user_credential(

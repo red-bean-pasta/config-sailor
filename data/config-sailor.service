@@ -8,8 +8,7 @@ StartLimitIntervalSec=60
 [Service]
 Type=simple
 EnvironmentFile=/etc/config-sailor/config-sailor.env
-WorkingDirectory=/opt/config-sailor
-ExecStart=/opt/config-sailor/bin/config-sailor serve
+ExecStart=/usr/bin/config-sailor serve
 Restart=on-failure
 RestartSec=5
 

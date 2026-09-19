@@ -4,6 +4,29 @@
 
 some.example.com:PORT {
 
+    # caddy-ratelimit plugin is required to enable rate_limit
+    # This limits 10 requests/minute per IP
+    rate_limit {
+        zone sailor {
+            key {remote_host}
+            events 10
+            window 1m
+        }
+    }
+
+    # Redact decryption key from query strings in logs
+    log {
+        output file /var/log/caddy/config-sailor.log
+        format filter {
+            wrap console
+            fields {
+                uri query {
+                    replace key REDACTED
+                }
+            }
+        }
+    }
+
     @config_sailor {
         path /some-path
     }

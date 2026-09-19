@@ -7,11 +7,11 @@ from config_sailor.file_managers.patch_manager import PatchManager
 
 
 class SpecFile(StrEnum):
-    BASE = "base.json.enc"
-    AUTH = "auth_rules.json"
-    USER = "user_rules.json"
-    AGENT = "agent_rules.json"
-    VERSION = "version_rules.json"
+    BASE = "base.enc"
+    AUTH = "auth.json"
+    USER = "user.json"
+    AGENT = "agent.json"
+    VERSION = "version.json"
 
 class StateFile(StrEnum):
     REVOKED = "revoked_credentials.txt"

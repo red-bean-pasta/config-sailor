@@ -54,7 +54,7 @@ def _setup_parser() -> argparse.ArgumentParser:
 def _setup_user_parser(subparsers):
     user_parser = subparsers.add_parser(
         "user",
-        help="Manage users and authentication credentials in auth_rules.json",
+        help="Manage users and authentication credentials in auth.json",
         epilog="Use '%(prog)s <action> --help' for more information on a specific action")
 
     user_subparsers = user_parser.add_subparsers(
@@ -78,7 +78,7 @@ def _setup_user_parser(subparsers):
         "path",
         type=Path,
         metavar="PATH",
-        help="Path to auth_rules.json or the directory containing it")
+        help="Path to auth.json or the directory containing it")
     add_parser.add_argument(
         "hash",
         nargs="?",
@@ -105,7 +105,7 @@ def _setup_user_parser(subparsers):
         "path",
         type=Path,
         metavar="PATH",
-        help="Path to auth_rules.json or the directory containing it")
+        help="Path to auth.json or the directory containing it")
     remove_parser.set_defaults(func=arg_funcs.user_remove)
 
 
@@ -125,12 +125,12 @@ Example:
         default=_env_spec_dir,
         help=f"""Path to the spec directory
 This directory must contain:
-  - base.json.enc
-  - auth_rules.json
+  - base.enc
+  - auth.json
 It may also contain:
-  - user_rules.json
-  - agent_rules.json
-  - version_rules.json
+  - user.json
+  - agent.json
+  - version.json
 Defaults to ${_SPEC_DIR_ENV}""")
     config.add_argument(
         "-s", "--state-dir",
@@ -175,7 +175,7 @@ def _setup_build_parser(subparsers):
     parser.add_argument(
         "-d", "--spec-dir",
         default=_env_spec_dir,
-        help=f"Path to the spec directory. Required files: [base.json.enc]. Optional files: [user_rules.json, agent_rules.json, version_rules.json]. Defaults to ${_SPEC_DIR_ENV}"
+        help=f"Path to the spec directory. Required files: [base.enc]. Optional files: [user.json, agent.json, version.json]. Defaults to ${_SPEC_DIR_ENV}"
     )
     parser.add_argument(
         "-o", "--output-path",
@@ -211,7 +211,7 @@ def _setup_encrypt_parsers(subparsers):
         type=Path,
         nargs="?",
         metavar="OUTPUT",
-        help="Destination path. Defaults to INPUT + '.enc'")
+        help="Destination path. Defaults to INPUT with .json replaced with .enc, or INPUT + '.enc'")
     enc.set_defaults(func=arg_funcs.encrypt)
 
     edit = subparsers.add_parser(

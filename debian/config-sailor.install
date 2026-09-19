@@ -2,13 +2,12 @@ data/config-sailor      usr/bin/
 
 data/config-sailor.env    etc/config-sailor/
 
-data/base.json.enc    etc/config-sailor/
-data/auth_rules.json    etc/config-sailor/
-data/user_rules.json    etc/config-sailor/
-data/agent_rules.json    etc/config-sailor/
-data/version_rules.json    etc/config-sailor/
+data/base.enc    etc/config-sailor/
+data/auth.json    etc/config-sailor/
+data/user.json    etc/config-sailor/
+data/agent.json    etc/config-sailor/
+data/version.json    etc/config-sailor/
 
 data/templates/*    etc/config-sailor/templates/
 
 data/config-sailor.service  lib/systemd/system/
-

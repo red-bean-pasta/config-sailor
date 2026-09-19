@@ -31,7 +31,7 @@ def add_user_credential(
     """
     Add or update authentication credential for a user.
 
-    :param path: Path to auth_rules.json
+    :param path: Path to auth.json
     :param user: Username
     :param method: 'basic' or 'bearer'
     :param hashed: Optional pre-computed Argon2 hash. If None, a random secret is generated.
@@ -79,7 +79,7 @@ def remove_user_credential(
     """
     Remove a user or a specific credential method for a user.
 
-    :param path: Path to auth_rules.json
+    :param path: Path to auth.json
     :param user: Username
     :param method: Optional method ('basic' or 'bearer'). If None, the entire user entry is removed.
     """

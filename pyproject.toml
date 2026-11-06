@@ -1,6 +1,6 @@
 [project]
 name = "config-sailor"
-version = "0.4.0"
+version = "0.5.0"
 description = "A lightweight config distribution service with document-level JSON patching, enabling dynamic, server-side transformation and delivery using minimal, GET-only clients"
 readme = "README.md"
 requires-python = ">=3.11"

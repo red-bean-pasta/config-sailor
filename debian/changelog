@@ -1,3 +1,13 @@
+config-sailor (0.5.0-1) unstable; urgency=medium
+
+  * Add regex support to patching directives and conditions.
+  * Support capture group substitution in $rename and $replace.
+  * Add user management command for credentials in auth.json.
+  * Simplify spec filenames and update encryption extension handling.
+  * Enhance template Caddyfile and systemd service entrypoint.
+
+ -- red-bean-pasta <red-bean-pasta@outlook.com>  Fri, 06 Nov 2026 18:30:00 +0800
+
 config-sailor (0.4.0-1) unstable; urgency=medium
 
   * Prompt for decryption key interactively via getpass and drop CLI key args.

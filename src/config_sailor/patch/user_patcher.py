@@ -1,9 +1,11 @@
-from pydantic import Field, field_validator, BaseModel
+from pydantic import Field, field_validator, model_validator, BaseModel
 
 from config_sailor.utils.json_helper import JsonObject
 from config_sailor.patch import conditional_node_parser
 from config_sailor.utils import json_helper
 from config_sailor.patch import conditional_node_maker
+from config_sailor.patch.base.schemas import SpecError
+from config_sailor.utils.regex_helper import matches_any_pattern, validate_regex, RegexError
 
 
 class UserMixin(BaseModel):
@@ -15,6 +17,16 @@ class UserMixin(BaseModel):
         if isinstance(value, bool):
             return value
         return json_helper.as_list(value)
+
+    @model_validator(mode='after')
+    def _validate_user_regex(self):
+        if getattr(self, 'regex', False) and not isinstance(self.user, bool):
+            try:
+                for pattern in self.user:
+                    validate_regex(pattern)
+            except RegexError as e:
+                raise SpecError(str(e)) from e
+        return self
 
 
 UserPatchNode = conditional_node_maker.make(UserMixin)
@@ -38,4 +50,8 @@ def _check_user(
         client_user: str | bool,
         model: UserMixin
 ) -> bool:
-    return client_user in model.user if not isinstance(model.user, bool) else model.user
+    if isinstance(model.user, bool):
+        return model.user
+    if getattr(model, 'regex', False) and isinstance(client_user, str):
+        return matches_any_pattern(model.user, client_user, regex=True)
+    return client_user in model.user

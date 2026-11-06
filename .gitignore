@@ -21,3 +21,5 @@ debian/*.changes
 debian/*.log
 debian/*.substvars
 debian/debhelper-build-stamp
+
+/.agentspace/

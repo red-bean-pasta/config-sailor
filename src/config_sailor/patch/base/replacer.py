@@ -1,5 +1,6 @@
 from config_sailor.patch.base.schemas import Replace
 from config_sailor.utils.json_helper import JsonObject, JsonValue, ensure_object_or_object_array
+from config_sailor.utils.regex_helper import matches_pattern, regex_sub
 
 
 def apply_replaces(
@@ -44,8 +45,8 @@ def _apply_replace_on_value(
         replace: Replace,
         value: JsonValue
 ) -> JsonValue:
-    if isinstance(value, str) and value in replace.from_:
-        return replace.to
+    if isinstance(value, str):
+        return _replace_string(replace, value)
 
     if not replace.recursive:
         return value
@@ -58,4 +59,17 @@ def _apply_replace_on_value(
             value[i] = _apply_replace_on_value(replace, item)
         return value
 
+    return value
+
+
+def _replace_string(
+        replace: Replace,
+        value: str
+) -> JsonValue:
+    if not replace.regex:
+        return replace.to if value in replace.from_ else value
+
+    for pattern in replace.from_:
+        if matches_pattern(pattern, value, regex=True):
+            return regex_sub(pattern, replace.to, value) if isinstance(replace.to, str) else replace.to
     return value

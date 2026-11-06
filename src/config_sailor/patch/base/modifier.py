@@ -4,6 +4,7 @@ from typing import Callable, Any
 from config_sailor.patch.base import locator
 from config_sailor.patch.base.schemas import Modify, Locator
 from config_sailor.utils.json_helper import JsonObject, shallow_recursive_compare, override_object, JsonValue, ensure_object_or_object_array
+from config_sailor.utils.regex_helper import matches_pattern, matches_any_pattern
 
 
 def apply_modifies(
@@ -57,8 +58,8 @@ def _modify_object(
         modify: Modify,
         target: JsonObject
 ) -> JsonObject:
-    passed_if = modify.if_ is None or _apply_if(modify.if_, target)
-    passed_not = modify.not_ is None or _apply_not(modify.not_, target)
+    passed_if = modify.if_ is None or _apply_if(modify.if_, target, modify.regex)
+    passed_not = modify.not_ is None or _apply_not(modify.not_, target, modify.regex)
     if not passed_if or not passed_not:
         return target
     return _apply_operations(modify, target)
@@ -69,7 +70,7 @@ def _modify_array(
         targets: list[JsonObject] | JsonObject
 ) -> list[JsonObject]:
     result = list(targets) if isinstance(targets, list) else [targets]
-    selection = _apply_to(modify.to, targets) if modify.to else range(len(result))
+    selection = _apply_to(modify.to, targets, modify.regex) if modify.to else range(len(result))
     for i in selection:
         result[i] = _apply_operations(modify, result[i])
     return result
@@ -83,62 +84,81 @@ def _apply_operations(
     for attr, func in _ordered_operations.items():
         value = getattr(modify, attr)
         if value is not None:
-            result = func(value, result)
+            if attr in ("remove", "prune"):
+                result = func(value, result, modify.regex)
+            else:
+                result = func(value, result)
     return result
 
 
 def _apply_if(
         if_: list[JsonObject],
-        target: JsonObject
+        target: JsonObject,
+        regex: bool = False,
 ) -> bool:
     for clause in if_:
-        if shallow_recursive_compare(clause, target):
+        if shallow_recursive_compare(clause, target, regex=regex):
             return True
     return False
 
 
 def _apply_not(
         not_: list[JsonObject],
-        target: JsonObject
+        target: JsonObject,
+        regex: bool = False,
 ) -> bool:
-    return not _apply_if(not_, target)
+    return not _apply_if(not_, target, regex=regex)
 
 
 def _apply_to(
         to_: list[Locator],
-        targets: list[JsonObject]
+        targets: list[JsonObject],
+        regex: bool = False,
 ) -> list[int]:
-    return locator.apply_locators(to_, targets)
+    return locator.apply_locators(to_, targets, regex=regex)
 
 
 def _apply_remove(
         remove: list[str],
-        target: JsonObject
+        target: JsonObject,
+        regex: bool = False,
 ) -> JsonObject:
     result = dict(target)
-    for k in remove:
-        if k in result:
-            del result[k]
+    if not regex:
+        for k in remove:
+            result.pop(k, None)
+        return result
+
+    for k in [k for k in result if matches_any_pattern(remove, k, regex=True)]:
+        del result[k]
     return result
 
 
 def _apply_prune(
         prune: list[list[str]],
-        target: JsonObject
+        target: JsonObject,
+        regex: bool = False,
 ) -> JsonObject:
     result = copy.deepcopy(target)
     for p in prune:
-        scope = result
-        key = p[-1]
-        path = p[:-1]
-        for step in path:
-            if step not in scope:
-                scope = None
-                break
-            scope = scope[step]
-        if scope and key in scope:
-            del scope[key]
+        _prune_path(result, p, regex=regex)
     return result
+
+
+def _prune_path(
+        scope: JsonObject,
+        path: list[str],
+        regex: bool = False,
+) -> None:
+    if not path or not isinstance(scope, dict):
+        return
+    head, *tail = path
+    if not tail:
+        for k in [k for k in scope if matches_pattern(head, k, regex=regex)]:
+            del scope[k]
+        return
+    for s in [k for k in scope if isinstance(scope[k], dict) and matches_pattern(head, k, regex=regex)]:
+        _prune_path(scope[s], tail, regex=regex)
 
 
 def _apply_patch(
@@ -158,7 +178,7 @@ def _apply_assign(
     return result
 
 
-_ordered_operations: dict[str, Callable[[Any, JsonObject], JsonObject]] = {
+_ordered_operations: dict[str, Callable[..., JsonObject]] = {
     "remove": _apply_remove,
     "prune": _apply_prune,
     "patch": _apply_patch,

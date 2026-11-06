@@ -3,6 +3,7 @@ from enum import StrEnum
 from pydantic import BaseModel, Field, ConfigDict, model_validator, field_validator
 
 from config_sailor.utils.json_helper import JsonValue, JsonObject, as_list
+from config_sailor.utils.regex_helper import validate_regex, RegexError
 
 
 class SpecError(ValueError):
@@ -24,13 +25,19 @@ _model_config = ConfigDict(
 )
 
 
-class Combine(BaseModel):
+class Directive(BaseModel):
+    model_config = _model_config
+
+    regex: bool = Field(default=False, alias='$regex')
+
+
+class Combine(Directive):
     model_config = _model_config
 
     mode: CombineMode | None = Field(default=CombineMode.UNION, alias='$mode')
 
 
-class Locator(BaseModel):
+class Locator(Directive):
     model_config = _model_config
 
     where: list[JsonObject] | None = Field(default=None, alias='$where')
@@ -55,16 +62,36 @@ class Locator(BaseModel):
         return [value]
 
     @model_validator(mode='after')
-    def _validate_slice(self):
-        if not self.slice:
-            return self
-        for s in self.slice:
-            l = len(s)
-            if l == 2:
-                s.append(None)
-            elif l != 3:
-                raise SpecError(f'$slice specified with {l} numbers: Only [start, end] and [start, end, step] forms are supported')
+    def _validate_locator(self):
+        if self.slice:
+            for s in self.slice:
+                l = len(s)
+                if l == 2:
+                    s.append(None)
+                elif l != 3:
+                    raise SpecError(f'$slice specified with {l} numbers: Only [start, end] and [start, end, step] forms are supported')
+        if self.regex:
+            try:
+                _validate_clauses(self.where)
+                _validate_clauses(self.not_)
+            except RegexError as e:
+                raise SpecError(str(e)) from e
         return self
+
+
+def _validate_clauses(clauses: list[JsonObject] | None) -> None:
+    if not clauses:
+        return
+    for clause in clauses:
+        _validate_condition_regex(clause)
+
+
+def _validate_condition_regex(condition: JsonObject) -> None:
+    for k, v in condition.items():
+        if isinstance(v, str):
+            validate_regex(v)
+        elif isinstance(v, dict):
+            _validate_condition_regex(v)
 
 
 class Select(Combine):
@@ -79,6 +106,22 @@ class Select(Combine):
     @classmethod
     def _normalize_single_field(cls, value) -> list[JsonValue] | None:
         return as_list(value)
+
+    @model_validator(mode='after')
+    def _validate_select(self):
+        if self.regex:
+            try:
+                for item in self.in_:
+                    validate_regex(item)
+                if self.rename:
+                    for pattern in self.rename.keys():
+                        validate_regex(pattern)
+                if self.override:
+                    for pattern in self.override.keys():
+                        validate_regex(pattern)
+            except RegexError as e:
+                raise SpecError(str(e)) from e
+        return self
 
 
 class Filter(Combine, Locator):
@@ -104,7 +147,7 @@ class Insert(Locator):
         return self
 
 
-class Modify(BaseModel):
+class Modify(Directive):
     model_config = _model_config
 
     if_: list[JsonObject] | None = Field(default=None, alias='$if')
@@ -134,10 +177,20 @@ class Modify(BaseModel):
             return value
         if isinstance(value, int):
             return [{'$index': [value]}]
-        if isinstance(value, list):
-            return [{'$index': value}] if isinstance(value[0], int) else value
         if isinstance(value, dict):
             return [value] if any(k.startswith("$") for k in value) else [{'$where': value}]
+        if isinstance(value, list):
+            if not value:
+                return value
+            if isinstance(value[0], int):
+                return [{'$index': value}]
+            normalized = []
+            for item in value:
+                if isinstance(item, dict) and not any(k.startswith("$") for k in item):
+                    normalized.append({'$where': item})
+                else:
+                    normalized.append(item)
+            return normalized
         return value # Let pydantic handle
 
     @field_validator('if_', 'not_', 'remove', mode='before')
@@ -151,10 +204,23 @@ class Modify(BaseModel):
         is_array = self.to is not None
         if is_object and is_array:
             raise SpecError('$if and $not cannot be used together with $to in $modify')
+        if self.regex:
+            try:
+                _validate_clauses(self.if_)
+                _validate_clauses(self.not_)
+                if self.remove:
+                    for pattern in self.remove:
+                        validate_regex(pattern)
+                if self.prune:
+                    for path in self.prune:
+                        for step in path:
+                            validate_regex(step)
+            except RegexError as e:
+                raise SpecError(str(e)) from e
         return self
 
 
-class Replace(BaseModel):
+class Replace(Directive):
     model_config = _model_config
 
     from_: list[str] = Field(alias='$from')
@@ -171,3 +237,13 @@ class Replace(BaseModel):
         if not all(isinstance(i, str) for i in value):
             raise SpecError(f"Invalid $from: Only string element is allowed")
         return value
+
+    @model_validator(mode='after')
+    def _validate_replace(self):
+        if self.regex:
+            try:
+                for pattern in self.from_:
+                    validate_regex(pattern)
+            except RegexError as e:
+                raise SpecError(str(e)) from e
+        return self

@@ -1,11 +1,12 @@
 from collections import defaultdict
-from typing import Any
+from typing import Any, Callable
 
 from config_sailor.utils.json_helper import JsonObject, get_indexed_items, JsonValue
 from config_sailor.patch.base import combiner
 from config_sailor.utils import json_helper
 from config_sailor.utils.json_helper import ensure_object_array
 from config_sailor.patch.base.schemas import Select
+from config_sailor.utils.regex_helper import matches_pattern, regex_sub
 
 
 def apply_selects(
@@ -33,10 +34,10 @@ def apply_select(
         select: Select,
         targets: list[JsonObject],
 ) -> dict[int, list[JsonObject]]:
-    selection = _apply_by_in(select.by, select.in_, targets)
-    rename = _apply_rename(select.by, select.rename, targets, selection) if select.rename else {}
+    selection = _apply_by_in(select.by, select.in_, targets, select.regex)
+    rename = _apply_rename(select.by, select.rename, targets, selection, select.regex) if select.rename else {}
     normalized_rename = _normalize_rename(select.by, rename)
-    override = _apply_override(select.by, select.override, targets, selection) if select.override else {}
+    override = _apply_override(select.by, select.override, targets, selection, select.regex) if select.override else {}
 
     result = {}
     for i in selection:
@@ -48,11 +49,12 @@ def _apply_by_in(
         by: list[str],
         in_: list[str],
         targets: list[JsonObject],
+        regex: bool = False,
 ) -> list[int]:
     result = []
     for i, t in enumerate(targets):
         for option in in_:
-            if _compare_by_option(by, option, t):
+            if _compare_by_option(by, option, t, regex):
                 result.append(i)
                 break
     return result
@@ -63,8 +65,12 @@ def _apply_rename(
         rename: dict[str, str],
         targets: list[JsonObject],
         selection: list[int] | None,
+        regex: bool = False,
 ) -> dict[int, str]:
-    return _convert_keyed_to_indexed(by, rename, targets, selection)
+    return _apply_keyed_mapping(
+        by, rename, targets, selection, regex=regex,
+        transform=lambda p, repl, v: regex_sub(p, repl, v)
+    )
 
 
 def _apply_override(
@@ -72,8 +78,33 @@ def _apply_override(
         override: dict[str, JsonObject],
         targets: list[JsonObject],
         selection: list[int] | None,
+        regex: bool = False,
 ) -> dict[int, JsonObject]:
-    return _convert_keyed_to_indexed(by, override, targets, selection)
+    return _apply_keyed_mapping(by, override, targets, selection, regex=regex)
+
+
+def _apply_keyed_mapping(
+        by: list[str],
+        mapping: dict[str, Any],
+        targets: list[JsonObject],
+        selection: list[int] | None,
+        regex: bool = False,
+        transform: Callable[[str, Any, str], Any] | None = None,
+) -> dict[int, Any]:
+    if not regex:
+        return _convert_keyed_to_indexed(by, mapping, targets, selection)
+
+    indexed_dict: dict[int, Any] = {}
+    selected = _select_targets_by_indices(targets, selection)
+    for i, s in selected.items():
+        value = _resolve_by_path(s, by)
+        if not isinstance(value, str):
+            continue
+        for pattern, item in mapping.items():
+            if matches_pattern(pattern, value, regex=True):
+                indexed_dict[i] = transform(pattern, item, value) if transform else item
+                break
+    return indexed_dict
 
 
 def _merge_with_overrides(
@@ -99,16 +130,26 @@ def _normalize_rename(
     return result
 
 
+def _resolve_by_path(target: JsonObject, by: list[str]) -> Any:
+    value = target
+    for key in by:
+        if not isinstance(value, dict) or key not in value:
+            return None
+        value = value[key]
+    return value
+
+
 def _compare_by_option(
         by: list[str],
         option: JsonValue,
         target: JsonObject,
+        regex: bool = False,
 ) -> bool:
-    value = target
-    for key in by:
-        if key not in value:
-            return False
-        value = value[key]
+    value = _resolve_by_path(target, by)
+    if value is None and option is not None:
+        return False
+    if regex and isinstance(option, str) and isinstance(value, str):
+        return matches_pattern(option, value, regex=True)
     return option == value
 
 
@@ -121,9 +162,7 @@ def _convert_keyed_to_indexed(
     indexed_dict: dict[int, Any] = {}
     selected = _select_targets_by_indices(targets, selection)
     for i, s in selected.items():
-        value = s
-        for key in by:
-            value = value[key]
+        value = _resolve_by_path(s, by)
         if value in keyed_dict:
             indexed_dict[i] = keyed_dict[value]
     return indexed_dict

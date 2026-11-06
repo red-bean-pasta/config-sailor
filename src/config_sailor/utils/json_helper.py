@@ -4,6 +4,9 @@ from typing import Iterable, TypeAlias, TYPE_CHECKING
 from typing_extensions import TypeAliasType
 
 
+from config_sailor.utils.regex_helper import matches_pattern
+
+
 JsonScalar: TypeAlias = str | int | float | bool | None
 if TYPE_CHECKING:
     JsonValue: TypeAlias = JsonScalar | list["JsonValue"] | dict[str, "JsonValue"]
@@ -76,19 +79,26 @@ def override_object(
 def shallow_recursive_compare(
         condition: JsonObject,
         target: JsonObject,
+        regex: bool = False,
 ) -> bool:
     for k, v in condition.items():
-        if k not in target:
-            return False
-        if type(target[k]) != type(v):
-            return False
-        if not isinstance(v, dict):
-            if v != target[k]:
-                return False
-            continue
-        if not shallow_recursive_compare(v, target[k]):
+        if k not in target or not _compare_values(v, target[k], regex=regex):
             return False
     return True
+
+
+def _compare_values(
+        expected: JsonValue,
+        actual: JsonValue,
+        regex: bool = False,
+) -> bool:
+    if isinstance(expected, dict):
+        if not isinstance(actual, dict):
+            return False
+        return shallow_recursive_compare(expected, actual, regex=regex)
+    if regex and isinstance(expected, str) and isinstance(actual, str):
+        return matches_pattern(expected, actual, regex=True)
+    return type(expected) == type(actual) and expected == actual
 
 
 def as_list(x: JsonValue) -> list[JsonValue] | None:

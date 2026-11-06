@@ -255,22 +255,22 @@ Output:
 ## Regex support
 Directives (`$modify`, `$select`, `$filter`, `$replace`, `$insert`) support an optional top-level `"regex": true` (or `"$regex": true`). It defaults to `false` so literal characters (`*?()`) match as-is without escaping.
 
-When enabled:
-- **`$rename`**: Pattern keys with capture group substitution (`$1`, `$2`, or `\1`):
-  ```json
-  "$rename": {
-    "^srv_([a-z]+)_([0-9]+)$": "node-$1-$2"
-  }
-  ```
-- **`$remove`**: Deletes any keys matching regex patterns:
-  ```json
-  "$remove": ["^temp_", ".*_bak$"]
-  ```
-- **`$if` / `$not` / `$where`**: String field values are matched against regex patterns.
-- **`$in` / `$override`**: Elements are selected and overridden based on regex matching against the resolved `$by` value.
-- **`$from` in `$replace`**: Substrings matching regex patterns are substituted into `$to` (supporting `$1` capture groups).
-- **`$user` / `$agent`**: Matches client username or `User-Agent` header using regex patterns.
+Supported keywords: `$rename`, `$remove`, `$prune`, `$drop`, `$in`, `$if`, `$not`, `$where`, `$override`, `$from` in `$replace`, `$user`, `$agent`.
 
+Examples:
+```json
+"$rename": {
+  "^srv_([a-z]+)_([0-9]+)$": "node-$1-$2"
+}
+```
+```json
+"$remove": ["^temp_", ".*_bak$"]
+```
+```json
+"$drop": {
+  "outbounds": [".*OpenVPN$"]
+}
+```
 
 ## Caveats
 - Limited performance under high throughput as it checks file modification time on every request to reload specs on the fly.

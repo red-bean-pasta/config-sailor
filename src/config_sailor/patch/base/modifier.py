@@ -84,7 +84,7 @@ def _apply_operations(
     for attr, func in _ordered_operations.items():
         value = getattr(modify, attr)
         if value is not None:
-            if attr in ("remove", "prune"):
+            if attr in ("remove", "prune", "drop"):
                 result = func(value, result, modify.regex)
             else:
                 result = func(value, result)
@@ -134,6 +134,34 @@ def _apply_remove(
     return result
 
 
+def _should_drop_item(
+        item: Any,
+        patterns: list[JsonValue],
+        regex: bool = False
+) -> bool:
+    if regex and isinstance(item, str):
+        str_patterns = [p for p in patterns if isinstance(p, str)]
+        if matches_any_pattern(str_patterns, item, regex=True):
+            return True
+        return item in patterns
+    return item in patterns
+
+
+def _apply_drop(
+        drop: dict[str, list[JsonValue]],
+        target: JsonObject,
+        regex: bool = False,
+) -> JsonObject:
+    result = dict(target)
+    for field_name, patterns in drop.items():
+        if field_name not in result:
+            continue
+        val = result[field_name]
+        if isinstance(val, list):
+            result[field_name] = [item for item in val if not _should_drop_item(item, patterns, regex=regex)]
+    return result
+
+
 def _apply_prune(
         prune: list[list[str]],
         target: JsonObject,
@@ -180,6 +208,7 @@ def _apply_assign(
 
 _ordered_operations: dict[str, Callable[..., JsonObject]] = {
     "remove": _apply_remove,
+    "drop": _apply_drop,
     "prune": _apply_prune,
     "patch": _apply_patch,
     "assign": _apply_assign,

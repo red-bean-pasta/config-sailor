@@ -155,9 +155,22 @@ class Modify(Directive):
     to: list[Locator] | None = Field(default=None, alias='$to')
 
     remove: list[str] | None = Field(default=None, alias='$remove')
+    drop: dict[str, list[JsonValue]] | None = Field(default=None, alias='$drop')
     prune: list[list[str]] | None = Field(default=None, alias='$prune')
     patch: JsonObject | None = Field(default=None, alias='$patch')
     assign: JsonObject | None = Field(default=None, alias='$assign')
+
+    @field_validator('drop', mode='before')
+    @classmethod
+    def _normalize_drop(cls, value):
+        if not value:
+            return value
+        if not isinstance(value, dict):
+            return value
+        normalized: dict[str, list[JsonValue]] = {}
+        for k, v in value.items():
+            normalized[k] = as_list(v)
+        return normalized
 
     @field_validator('prune', mode='before')
     @classmethod
@@ -211,6 +224,11 @@ class Modify(Directive):
                 if self.remove:
                     for pattern in self.remove:
                         validate_regex(pattern)
+                if self.drop:
+                    for field_patterns in self.drop.values():
+                        for p in field_patterns:
+                            if isinstance(p, str):
+                                validate_regex(p)
                 if self.prune:
                     for path in self.prune:
                         for step in path:

@@ -358,6 +358,72 @@ class TestRegexDirectives(unittest.TestCase):
             PatchNode.model_validate(bad_spec)
         self.assertIn("Regex invalid", str(cm.exception))
 
+    def test_modify_drop_with_regex(self):
+        spec = {
+            "$modify": {
+                "regex": True,
+                "$to": {"type": "selector"},
+                "$drop": {
+                    "items": [r".*_legacy$"]
+                }
+            }
+        }
+        data = [
+            {
+                "tag": "group_a",
+                "type": "selector",
+                "items": [
+                    "node_1",
+                    "node_2",
+                    "node_3_legacy",
+                    "node_4_legacy"
+                ]
+            },
+            {
+                "tag": "direct",
+                "type": "direct"
+            }
+        ]
+        node = PatchNode.model_validate(spec)
+        result = node.patch(data)
+        self.assertEqual(result[0]["items"], [
+            "node_1",
+            "node_2"
+        ])
+
+    def test_modify_drop_literal(self):
+        spec = {
+            "$modify": {
+                "$to": {"type": "selector"},
+                "$drop": {
+                    "outbounds": ["drop_me"]
+                }
+            }
+        }
+        data = [
+            {
+                "type": "selector",
+                "outbounds": ["keep_me", "drop_me"]
+            }
+        ]
+        node = PatchNode.model_validate(spec)
+        result = node.patch(data)
+        self.assertEqual(result[0]["outbounds"], ["keep_me"])
+
+    def test_modify_drop_invalid_regex_raises(self):
+        import pydantic
+        bad_spec = {
+            "$modify": {
+                "regex": True,
+                "$drop": {
+                    "outbounds": ["[unclosed"]
+                }
+            }
+        }
+        with self.assertRaises(pydantic.ValidationError) as cm:
+            PatchNode.model_validate(bad_spec)
+        self.assertIn("Regex invalid", str(cm.exception))
+
 
 if __name__ == "__main__":
     unittest.main()

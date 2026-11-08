@@ -110,3 +110,19 @@ def as_list(x: JsonValue) -> list[JsonValue] | None:
     if isinstance(x, list):
         return list(x) # Shallow copy
     return [x]
+
+
+def resolve_path(
+        target: JsonValue,
+        path: list[str],
+) -> tuple[bool, JsonValue]:
+    curr = target
+    for i, step in enumerate(path):
+        if not isinstance(curr, dict):
+            raise ValueError(
+                f"Path step '{path[i - 1]}' must resolve to an object, got {type(curr).__name__}"
+            )
+        if step not in curr:
+            return False, None
+        curr = curr[step]
+    return True, curr

@@ -1,4 +1,5 @@
 from enum import StrEnum
+from typing import Any
 
 from pydantic import BaseModel, Field, ConfigDict, model_validator, field_validator
 
@@ -262,6 +263,71 @@ class Replace(Directive):
             try:
                 for pattern in self.from_:
                     validate_regex(pattern)
+            except RegexError as e:
+                raise SpecError(str(e)) from e
+        return self
+
+
+class QueryMode(StrEnum):
+    REPLACE = 'replace'
+    APPEND = 'append'
+    PREPEND = 'prepend'
+
+
+class QueryScope(Locator):
+    model_config = _model_config
+
+    scope: list[str] = Field(alias='$scope')
+
+    @field_validator('scope', mode='before')
+    @classmethod
+    def _normalize_scope(cls, value: Any) -> list[str]:
+        if isinstance(value, str):
+            return [value]
+        if isinstance(value, list) and value and all(isinstance(k, str) for k in value):
+            return value
+        raise SpecError(f"Invalid $scope: Expecting non-empty string or list of strings, got {value}")
+
+
+class Query(Directive):
+    model_config = _model_config
+
+    source: QueryScope = Field(alias='$source')
+    pluck: list[str] = Field(alias='$pluck')
+    destination: QueryScope = Field(alias='$destination')
+    plant: list[str] = Field(alias='$plant')
+    mode: QueryMode = Field(default=QueryMode.REPLACE, alias='$mode')
+    flatten: bool = Field(default=False, alias='$flatten')
+    nullable: bool = Field(default=True, alias='$nullable')
+
+    @model_validator(mode='before')
+    @classmethod
+    def _normalize_aliases(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            data = dict(data)
+            if '$take' in data and '$pluck' not in data:
+                data['$pluck'] = data.pop('$take')
+            if '$give' in data and '$plant' not in data:
+                data['$plant'] = data.pop('$give')
+        return data
+
+    @field_validator('pluck', 'plant', mode='before')
+    @classmethod
+    def _normalize_path(cls, value: Any) -> list[str]:
+        if isinstance(value, str):
+            return [value]
+        if isinstance(value, list) and value and all(isinstance(i, str) for i in value):
+            return value
+        raise SpecError(f"Field path must be a non-empty string or list of strings, got {value}")
+
+    @model_validator(mode='after')
+    def _validate_query(self):
+        if self.regex:
+            try:
+                _validate_clauses(self.source.where)
+                _validate_clauses(self.source.not_)
+                _validate_clauses(self.destination.where)
+                _validate_clauses(self.destination.not_)
             except RegexError as e:
                 raise SpecError(str(e)) from e
         return self

@@ -131,12 +131,8 @@ def _normalize_rename(
 
 
 def _resolve_by_path(target: JsonObject, by: list[str]) -> Any:
-    value = target
-    for key in by:
-        if not isinstance(value, dict) or key not in value:
-            return None
-        value = value[key]
-    return value
+    has_val, val = json_helper.resolve_path(target, by)
+    return val if has_val else None
 
 
 def _compare_by_option(

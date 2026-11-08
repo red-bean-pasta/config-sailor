@@ -5,8 +5,8 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator, field_valida
 
 import config_sailor.patch.base.filter as strain
 from config_sailor.utils.json_helper import JsonValue, as_list
-from config_sailor.patch.base import selector, modifier, inserter, replacer
-from config_sailor.patch.base.schemas import Select, Filter, Replace, Modify, Insert
+from config_sailor.patch.base import selector, modifier, inserter, replacer, querier
+from config_sailor.patch.base.schemas import Select, Filter, Replace, Modify, Insert, Query
 
 
 logger = logging.getLogger(__name__)
@@ -21,9 +21,10 @@ class PatchNode(BaseModel):
 
     filter: list[Filter] | None = Field(default=None, alias='$filter')
     select: list[Select] | None = Field(default=None, alias='$select')
-    replace: list[Replace] | None = Field(default=None, alias='$replace')
-    modify: list[Modify] | None = Field(default=None, alias='$modify')
     insert: list[Insert] | None = Field(default=None, alias='$insert')
+    query: list[Query] | None = Field(default=None, alias='$query')
+    modify: list[Modify] | None = Field(default=None, alias='$modify')
+    replace: list[Replace] | None = Field(default=None, alias='$replace')
 
     children: dict[str, Self] = Field(default_factory=dict, alias='$children')
 
@@ -36,7 +37,7 @@ class PatchNode(BaseModel):
         children: dict[str, Any] = {}
         normalized: dict[str, Any] = {}
         for key, value in data.items():
-            if key in ['$filter', '$select', '$replace', '$modify', '$insert']:
+            if key in ['$filter', '$select', '$insert', '$query', '$modify', '$replace']:
                 normalized[key] = value
             else:
                 children[key] = value
@@ -45,7 +46,7 @@ class PatchNode(BaseModel):
 
         return normalized
 
-    @field_validator('select', 'replace', 'filter', 'modify', 'insert', mode='before')
+    @field_validator('select', 'replace', 'filter', 'modify', 'insert', 'query', mode='before')
     @classmethod
     def _normalize_single_field(cls, value) -> list[JsonValue] | None:
         return as_list(value)
@@ -54,18 +55,25 @@ class PatchNode(BaseModel):
         'filter': strain.apply_filters,
         'select': selector.apply_selects,
         'insert': inserter.apply_inserts,
+        'query': querier.apply_queries,
         'modify': modifier.apply_modifies,
         'replace': replacer.apply_replaces,
     }
     def patch(self, target: JsonValue) -> JsonValue:
         result = target
-        for directive, func in self.ordered_directives.items():
+        for directive in ['filter', 'select', 'insert']:
             if values := getattr(self, directive):
-                result = func(values, result)
+                result = self.ordered_directives[directive](values, result)
+
         for key, child in self.children.items():
             assert(isinstance(result, list) and isinstance(key, int) or isinstance(result, dict) and isinstance(key, str))
             if key not in result:
                 logger.warning(f"Skip patching on key '{key}': Not found")
                 continue
             result[key] = child.patch(result[key])
+
+        for directive in ['query', 'modify', 'replace']:
+            if values := getattr(self, directive):
+                result = self.ordered_directives[directive](values, result)
+
         return result

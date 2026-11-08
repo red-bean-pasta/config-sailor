@@ -252,8 +252,43 @@ Output:
 }
 ```
 
+`config-sailor` also provides a **`$query`** operator to dynamically extract fields from one part of the document and plant them into another:
+
+Example:
+```json
+{
+  "$query": [
+    {
+      "$user": ["Lily"],
+      "$source": {
+        "$scope": ["outbounds"],
+        "$where": [{"type": "vmess"}]
+      },
+      "$pluck": "tag",
+      "$destination": {
+        "$scope": ["outbounds"],
+        "$where": [{"tag": "Landing"}]
+      },
+      "$plant": "outbounds",
+      "$mode": "append",
+      "$flatten": true,
+      "$nullable": false
+    }
+  ]
+}
+```
+
+Keywords:
+- `$source`: Source locator with `$scope` (path in document) and optional locators (`$where`, `$not`, `$slice`, `$index`).
+- `$pluck`: Field or path to extract from matching objects (e.g., `"tag"` or `["details", "tag"]`). `$take` is accepted as an alias.
+- `$destination`: Destination locator with `$scope` and optional locators.
+- `$plant`: Field or path to write to on matching destination objects. `$give` is accepted as an alias.
+- `$mode`: `"replace"` (default), `"append"`, or `"prepend"`.
+- `$flatten`: Whether to unwrap array values by one level (default `false`).
+- `$nullable`: Whether to preserve `null` values or drop them (default `true`).
+
 ## Regex support
-Directives (`$modify`, `$select`, `$filter`, `$replace`, `$insert`) support an optional top-level `"regex": true` (or `"$regex": true`). It defaults to `false` so literal characters (`*?()`) match as-is without escaping.
+Directives (`$modify`, `$select`, `$filter`, `$replace`, `$insert`, `$query`) support an optional top-level `"regex": true` (or `"$regex": true`). It defaults to `false` so literal characters (`*?()`) match as-is without escaping.
 
 Supported keywords: `$rename`, `$remove`, `$prune`, `$drop`, `$in`, `$if`, `$not`, `$where`, `$override`, `$from` in `$replace`, `$user`, `$agent`.
 

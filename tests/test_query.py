@@ -32,14 +32,7 @@ class TestQueryDirective(unittest.TestCase):
         result = node.patch(doc)
         self.assertEqual(result["summary"]["prices"], [10, 20])
 
-    def test_alias_take_and_give(self):
-        doc = {
-            "items": [
-                {"name": "apple", "price": 10},
-                {"name": "banana", "price": 20},
-            ],
-            "summary": {}
-        }
+    def test_alias_take_and_give_rejected(self):
         spec = {
             "$query": [
                 {
@@ -51,9 +44,9 @@ class TestQueryDirective(unittest.TestCase):
                 }
             ]
         }
-        node = PatchNode.model_validate(spec)
-        result = node.patch(doc)
-        self.assertEqual(result["summary"]["prices"], [10, 20])
+        from pydantic import ValidationError
+        with self.assertRaises(ValidationError):
+            PatchNode.model_validate(spec)
 
     def test_append_and_prepend_on_array(self):
         doc = {

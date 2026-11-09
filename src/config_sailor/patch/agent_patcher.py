@@ -4,7 +4,7 @@ from config_sailor.utils.json_helper import JsonObject
 from config_sailor.patch import conditional_node_maker, conditional_node_parser
 from config_sailor.utils import json_helper
 from config_sailor.patch.base.schemas import SpecError
-from config_sailor.utils.regex_helper import matches_any_pattern, validate_regex, RegexError
+from config_sailor.utils.regex_helper import matches_any_pattern, validate_patterns, RegexError
 
 
 class AgentMixin(BaseModel):
@@ -19,8 +19,7 @@ class AgentMixin(BaseModel):
     def _validate_agent_regex(self):
         if getattr(self, 'regex', False):
             try:
-                for pattern in self.agent:
-                    validate_regex(pattern)
+                validate_patterns(self.agent)
             except RegexError as e:
                 raise SpecError(str(e)) from e
         return self

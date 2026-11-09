@@ -66,7 +66,9 @@ class PatchNode(BaseModel):
                 result = self.ordered_directives[directive](values, result)
 
         for key, child in self.children.items():
-            assert(isinstance(result, list) and isinstance(key, int) or isinstance(result, dict) and isinstance(key, str))
+            if not isinstance(result, dict):
+                logger.warning(f"Cannot patch child key '{key}' on non-dict target of type {type(result).__name__}")
+                continue
             if key not in result:
                 logger.warning(f"Skip patching on key '{key}': Not found")
                 continue

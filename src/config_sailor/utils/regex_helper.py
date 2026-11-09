@@ -14,6 +14,11 @@ def validate_regex(pattern: str) -> None:
         raise RegexError(f"Pattern '{pattern}': {e}") from e
 
 
+_REPL_PATTERN = re.compile(
+    r"\$\$(?P<escaped>)|\$(?:\{(?P<braced>[a-zA-Z0-9_]+)\}|<(?P<angled>[a-zA-Z0-9_]+)>|(?P<numbered>[0-9]+))"
+)
+
+
 def to_python_replacement(template: str) -> str:
     """
     Convert replacement template syntax:
@@ -23,13 +28,14 @@ def to_python_replacement(template: str) -> str:
     """
     if "$" not in template:
         return template
-    token = "\x00ESCAPED_DOLLAR\x00"
-    s = template.replace("$$", token)
-    s = re.sub(r"\$\{([a-zA-Z0-9_]+)\}", r"\\g<\1>", s)
-    s = re.sub(r"\$<([a-zA-Z0-9_]+)>", r"\\g<\1>", s)
-    s = re.sub(r"\$([0-9]+)", r"\\g<\1>", s)
-    s = s.replace(token, "$")
-    return s
+
+    def _replace_match(m: re.Match) -> str:
+        if m.group("escaped") is not None:
+            return "$"
+        name = m.group("braced") or m.group("angled") or m.group("numbered")
+        return f"\\g<{name}>"
+
+    return _REPL_PATTERN.sub(_replace_match, template)
 
 
 def regex_sub(pattern: str, template: str, text: str) -> str:
@@ -47,3 +53,27 @@ def matches_any_pattern(patterns: Iterable[str], text: str, regex: bool = False)
     if not regex:
         return text in patterns
     return any(re.search(p, text) for p in patterns)
+
+
+def validate_condition_regex(condition: dict) -> None:
+    for k, v in condition.items():
+        if isinstance(v, str):
+            validate_regex(v)
+        elif isinstance(v, dict):
+            validate_condition_regex(v)
+
+
+def validate_clauses(clauses: list[dict] | None) -> None:
+    if not clauses:
+        return
+    for clause in clauses:
+        validate_condition_regex(clause)
+
+
+def validate_patterns(*pattern_groups: Iterable[str] | None) -> None:
+    for group in pattern_groups:
+        if not group:
+            continue
+        for pattern in group:
+            if isinstance(pattern, str):
+                validate_regex(pattern)

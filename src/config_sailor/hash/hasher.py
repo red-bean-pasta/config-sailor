@@ -1,5 +1,5 @@
 import anyio
-from argon2 import PasswordHasher
+from argon2 import PasswordHasher, extract_parameters
 from argon2.exceptions import VerifyMismatchError, InvalidHash, VerificationError
 
 
@@ -20,11 +20,9 @@ def is_valid_hash(secret_hash: str) -> bool:
     if not isinstance(secret_hash, str) or not secret_hash.startswith("$argon2"):
         return False
     try:
-        HASHER.verify(secret_hash, "")
+        extract_parameters(secret_hash)
         return True
-    except VerifyMismatchError:
-        return True
-    except (InvalidHash, VerificationError, Exception):
+    except (InvalidHash, VerificationError):
         return False
 
 

@@ -36,7 +36,7 @@ def extract_source_values(
         logger.warning(f"Source scope '{query.source.scope}' not found in document")
         return []
 
-    candidates = normalize_to_object_array(target)
+    candidates = json_helper.ensure_object_array(target, object_as_list=True)
     use_regex = query.regex or query.source.regex
     indices = locator.apply_locate(query.source, candidates, regex=use_regex)
     matched = [candidates[i] for i in indices]
@@ -50,18 +50,6 @@ def resolve_scope_target(
 ) -> JsonValue | None:
     has_target, target = json_helper.resolve_path(root, scope)
     return target if has_target else None
-
-
-def normalize_to_object_array(target: JsonValue) -> list[JsonObject]:
-    if isinstance(target, dict):
-        return [target]
-    if isinstance(target, list):
-        if not target:
-            return []
-        if any(not isinstance(i, dict) for i in target):
-            raise ValueError(f"Scope target array elements must be objects")
-        return target
-    raise ValueError(f"Scope target must be an object or array of objects, got {type(target).__name__}")
 
 
 def collect_plucked_values(
@@ -113,15 +101,10 @@ def locate_destination_objects(
 ) -> list[JsonObject]:
     if isinstance(dest_target, dict):
         return [dest_target]
-    if isinstance(dest_target, list):
-        if not dest_target:
-            return []
-        if any(not isinstance(i, dict) for i in dest_target):
-            raise ValueError(f"Destination array elements must be objects")
-        use_regex = regex or scope.regex
-        indices = locator.apply_locate(scope, dest_target, regex=use_regex)
-        return [dest_target[i] for i in indices]
-    raise ValueError(f"Destination target must be an object or array of objects, got {type(dest_target).__name__}")
+    dest_array = json_helper.ensure_object_array(dest_target, object_as_list=False)
+    use_regex = regex or scope.regex
+    indices = locator.apply_locate(scope, dest_array, regex=use_regex)
+    return [dest_array[i] for i in indices]
 
 
 def plant_field_in_object(
@@ -131,8 +114,12 @@ def plant_field_in_object(
 ) -> None:
     curr = obj
     for step in query.plant[:-1]:
-        if step not in curr or not isinstance(curr[step], dict):
+        if step not in curr:
             curr[step] = {}
+        elif not isinstance(curr[step], dict):
+            raise ValueError(
+                f"Plant path step '{step}' must resolve to an object, got {type(curr[step]).__name__}"
+            )
         curr = curr[step]
 
     field = query.plant[-1]

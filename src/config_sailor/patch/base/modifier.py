@@ -137,13 +137,12 @@ def _apply_remove(
 def _should_drop_item(
         item: Any,
         patterns: list[JsonValue],
-        regex: bool = False
+        str_patterns: list[str],
+        regex: bool = False,
 ) -> bool:
     if regex and isinstance(item, str):
-        str_patterns = [p for p in patterns if isinstance(p, str)]
         if matches_any_pattern(str_patterns, item, regex=True):
             return True
-        return item in patterns
     return item in patterns
 
 
@@ -158,7 +157,11 @@ def _apply_drop(
             continue
         val = result[field_name]
         if isinstance(val, list):
-            result[field_name] = [item for item in val if not _should_drop_item(item, patterns, regex=regex)]
+            str_patterns = [p for p in patterns if isinstance(p, str)] if regex else []
+            result[field_name] = [
+                item for item in val
+                if not _should_drop_item(item, patterns, str_patterns, regex=regex)
+            ]
     return result
 
 

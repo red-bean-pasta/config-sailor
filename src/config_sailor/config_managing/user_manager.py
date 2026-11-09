@@ -13,13 +13,13 @@ logger = logging.getLogger(__name__)
 
 def get_auth_rules_path(path: str | Path) -> Path:
     p = Path(path)
-    if p.is_file():
-        return p
     if p.is_dir():
         return p / manager_helper.SpecFile.AUTH
-    if p.suffix == ".json":
+    if p.name == manager_helper.SpecFile.AUTH:
         return p
-    return p / manager_helper.SpecFile.AUTH
+    raise ValueError(
+        f"Path must point to '{manager_helper.SpecFile.AUTH}' or an existing directory containing it, got '{path}'"
+    )
 
 
 def add_user_credential(

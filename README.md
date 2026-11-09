@@ -280,9 +280,9 @@ Example:
 
 Keywords:
 - `$source`: Source locator with `$scope` (path in document) and optional locators (`$where`, `$not`, `$slice`, `$index`).
-- `$pluck`: Field or path to extract from matching objects (e.g., `"tag"` or `["details", "tag"]`). `$take` is accepted as an alias.
+- `$pluck`: Field or path to extract from matching objects (e.g., `"tag"` or `["details", "tag"]`).
 - `$destination`: Destination locator with `$scope` and optional locators.
-- `$plant`: Field or path to write to on matching destination objects. `$give` is accepted as an alias.
+- `$plant`: Field or path to write to on matching destination objects.
 - `$mode`: `"replace"` (default), `"append"`, or `"prepend"`.
 - `$flatten`: Whether to unwrap array values by one level (default `false`).
 - `$nullable`: Whether to preserve `null` values or drop them (default `true`).

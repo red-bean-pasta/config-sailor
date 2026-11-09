@@ -29,7 +29,7 @@ def build(args: argparse.Namespace) -> None:
         key = getpass.getpass("Enter decryption key: ")
     except (KeyboardInterrupt, EOFError):
         print()
-        return
+        sys.exit(1)
 
     result = builder.build(args.spec_dir, param, key)
 

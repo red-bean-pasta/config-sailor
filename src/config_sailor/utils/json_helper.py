@@ -119,8 +119,9 @@ def resolve_path(
     curr = target
     for i, step in enumerate(path):
         if not isinstance(curr, dict):
+            step_desc = f"Path step '{path[i - 1]}'" if i > 0 else "Target root"
             raise ValueError(
-                f"Path step '{path[i - 1]}' must resolve to an object, got {type(curr).__name__}"
+                f"{step_desc} must resolve to an object, got {type(curr).__name__}"
             )
         if step not in curr:
             return False, None

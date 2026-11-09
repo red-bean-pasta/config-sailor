@@ -5,7 +5,7 @@ from config_sailor.patch import conditional_node_parser
 from config_sailor.utils import json_helper
 from config_sailor.patch import conditional_node_maker
 from config_sailor.patch.base.schemas import SpecError
-from config_sailor.utils.regex_helper import matches_any_pattern, validate_regex, RegexError
+from config_sailor.utils.regex_helper import matches_any_pattern, validate_patterns, RegexError
 
 
 class UserMixin(BaseModel):
@@ -22,8 +22,7 @@ class UserMixin(BaseModel):
     def _validate_user_regex(self):
         if getattr(self, 'regex', False) and not isinstance(self.user, bool):
             try:
-                for pattern in self.user:
-                    validate_regex(pattern)
+                validate_patterns(self.user)
             except RegexError as e:
                 raise SpecError(str(e)) from e
         return self

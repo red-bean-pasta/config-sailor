@@ -59,7 +59,12 @@ def _setup_user_parser(subparsers):
         dest="user_action",
         required=True)
 
-    add_parser = user_subparsers.add_parser(
+    _setup_user_add_parser(user_subparsers)
+    _setup_user_remove_parser(user_subparsers)
+
+
+def _setup_user_add_parser(subparsers):
+    add_parser = subparsers.add_parser(
         "add",
         help="Add or update a verification credential for a user")
     add_parser.add_argument(
@@ -84,7 +89,9 @@ def _setup_user_parser(subparsers):
         help="Pre-computed Argon2 hash. If omitted, a random secret is generated automatically and its plaintext is printed")
     add_parser.set_defaults(func=arg_funcs.user_add)
 
-    remove_parser = user_subparsers.add_parser(
+
+def _setup_user_remove_parser(subparsers):
+    remove_parser = subparsers.add_parser(
         "remove",
         help="Remove a user or a specific verification method for a user")
     remove_parser.add_argument(
@@ -111,7 +118,13 @@ def _setup_serve_parser(subparsers):
         "serve",
         help="Start the config patching service over HTTP or HTTPS",
     )
+    _add_serve_config_args(parser)
+    _add_serve_network_args(parser)
+    _add_log_arg(parser)
+    parser.set_defaults(func=arg_funcs.serve)
 
+
+def _add_serve_config_args(parser):
     config = parser.add_argument_group("Configuration")
     config.add_argument(
         "-d", "--spec-dir",
@@ -134,6 +147,8 @@ Defaults to ${_SPEC_DIR_ENV}""")
 This currently only includes the revoked-credentials record
 Defaults to ${_STATE_DIR_ENV}""")
 
+
+def _add_serve_network_args(parser):
     network = parser.add_argument_group("Network")
     network.add_argument(
         "--host",
@@ -166,10 +181,6 @@ Defaults to FORWARDED_ALLOW_IPS else 127.0.0.1""")
         action='store_true', default=False,
         help="""Allow plaintext HTTP request and disable exposed credentials revoking
 Warning: Enable this only in trusted development environments""")
-
-    _add_log_arg(parser)
-
-    parser.set_defaults(func=arg_funcs.serve)
 
 
 def _setup_build_parser(subparsers):
@@ -215,7 +226,7 @@ def _setup_encrypt_parsers(subparsers):
         type=Path,
         nargs="?",
         metavar="OUTPUT",
-        help="Destination path. Defaults to INPUT with .json replaced with .enc, or INPUT + '.enc'")
+        help="Destination path. Defaults to INPUT with extension replaced with '.enc'")
     enc.set_defaults(func=arg_funcs.encrypt)
 
     edit = subparsers.add_parser(

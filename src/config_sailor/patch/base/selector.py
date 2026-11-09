@@ -35,9 +35,10 @@ def apply_select(
         targets: list[JsonObject],
 ) -> dict[int, list[JsonObject]]:
     selection = _apply_by_in(select.by, select.in_, targets, select.regex)
-    rename = _apply_rename(select.by, select.rename, targets, selection, select.regex) if select.rename else {}
+    selected = _select_targets_by_indices(targets, selection)
+    rename = _apply_rename(select, selected) if select.rename else {}
     normalized_rename = _normalize_rename(select.by, rename)
-    override = _apply_override(select.by, select.override, targets, selection, select.regex) if select.override else {}
+    override = _apply_override(select, selected) if select.override else {}
 
     result = {}
     for i in selection:
@@ -61,44 +62,36 @@ def _apply_by_in(
 
 
 def _apply_rename(
-        by: list[str],
-        rename: dict[str, str],
-        targets: list[JsonObject],
-        selection: list[int] | None,
-        regex: bool = False,
+        select: Select,
+        selected: dict[int, JsonObject],
 ) -> dict[int, str]:
     return _apply_keyed_mapping(
-        by, rename, targets, selection, regex=regex,
+        select.by, select.rename, selected, regex=select.regex,
         transform=lambda p, repl, v: regex_sub(p, repl, v)
     )
 
 
 def _apply_override(
-        by: list[str],
-        override: dict[str, JsonObject],
-        targets: list[JsonObject],
-        selection: list[int] | None,
-        regex: bool = False,
+        select: Select,
+        selected: dict[int, JsonObject],
 ) -> dict[int, JsonObject]:
-    return _apply_keyed_mapping(by, override, targets, selection, regex=regex)
+    return _apply_keyed_mapping(select.by, select.override, selected, regex=select.regex)
 
 
 def _apply_keyed_mapping(
         by: list[str],
         mapping: dict[str, Any],
-        targets: list[JsonObject],
-        selection: list[int] | None,
+        selected: dict[int, JsonObject],
         regex: bool = False,
         transform: Callable[[str, Any, str], Any] | None = None,
 ) -> dict[int, Any]:
     if not regex:
-        return _convert_keyed_to_indexed(by, mapping, targets, selection)
+        return _convert_keyed_to_indexed(by, mapping, selected)
 
     indexed_dict: dict[int, Any] = {}
-    selected = _select_targets_by_indices(targets, selection)
     for i, s in selected.items():
-        value = _resolve_by_path(s, by)
-        if not isinstance(value, str):
+        has_val, value = json_helper.resolve_path(s, by)
+        if not has_val or not isinstance(value, str):
             continue
         for pattern, item in mapping.items():
             if matches_pattern(pattern, value, regex=True):
@@ -130,19 +123,14 @@ def _normalize_rename(
     return result
 
 
-def _resolve_by_path(target: JsonObject, by: list[str]) -> Any:
-    has_val, val = json_helper.resolve_path(target, by)
-    return val if has_val else None
-
-
 def _compare_by_option(
         by: list[str],
         option: JsonValue,
         target: JsonObject,
         regex: bool = False,
 ) -> bool:
-    value = _resolve_by_path(target, by)
-    if value is None and option is not None:
+    has_val, value = json_helper.resolve_path(target, by)
+    if not has_val:
         return False
     if regex and isinstance(option, str) and isinstance(value, str):
         return matches_pattern(option, value, regex=True)
@@ -152,14 +140,12 @@ def _compare_by_option(
 def _convert_keyed_to_indexed(
         by: list[str],
         keyed_dict: dict[str, Any],
-        targets: list[JsonObject],
-        selection: list[int] | None,
+        selected: dict[int, JsonObject],
 ) -> dict[int, Any]:
     indexed_dict: dict[int, Any] = {}
-    selected = _select_targets_by_indices(targets, selection)
     for i, s in selected.items():
-        value = _resolve_by_path(s, by)
-        if value in keyed_dict:
+        has_val, value = json_helper.resolve_path(s, by)
+        if has_val and value in keyed_dict:
             indexed_dict[i] = keyed_dict[value]
     return indexed_dict
 

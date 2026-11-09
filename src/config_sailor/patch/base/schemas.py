@@ -4,7 +4,7 @@ from typing import Any
 from pydantic import BaseModel, Field, ConfigDict, model_validator, field_validator
 
 from config_sailor.utils.json_helper import JsonValue, JsonObject, as_list
-from config_sailor.utils.regex_helper import validate_regex, RegexError
+from config_sailor.utils.regex_helper import validate_regex, validate_clauses, validate_patterns, RegexError
 
 
 class SpecError(ValueError):
@@ -73,26 +73,11 @@ class Locator(Directive):
                     raise SpecError(f'$slice specified with {l} numbers: Only [start, end] and [start, end, step] forms are supported')
         if self.regex:
             try:
-                _validate_clauses(self.where)
-                _validate_clauses(self.not_)
+                validate_clauses(self.where)
+                validate_clauses(self.not_)
             except RegexError as e:
                 raise SpecError(str(e)) from e
         return self
-
-
-def _validate_clauses(clauses: list[JsonObject] | None) -> None:
-    if not clauses:
-        return
-    for clause in clauses:
-        _validate_condition_regex(clause)
-
-
-def _validate_condition_regex(condition: JsonObject) -> None:
-    for k, v in condition.items():
-        if isinstance(v, str):
-            validate_regex(v)
-        elif isinstance(v, dict):
-            _validate_condition_regex(v)
 
 
 class Select(Combine):
@@ -112,14 +97,7 @@ class Select(Combine):
     def _validate_select(self):
         if self.regex:
             try:
-                for item in self.in_:
-                    validate_regex(item)
-                if self.rename:
-                    for pattern in self.rename.keys():
-                        validate_regex(pattern)
-                if self.override:
-                    for pattern in self.override.keys():
-                        validate_regex(pattern)
+                validate_patterns(self.in_, self.rename, self.override)
             except RegexError as e:
                 raise SpecError(str(e)) from e
         return self
@@ -164,25 +142,16 @@ class Modify(Directive):
     @field_validator('drop', mode='before')
     @classmethod
     def _normalize_drop(cls, value):
-        if not value:
+        if not value or not isinstance(value, dict):
             return value
-        if not isinstance(value, dict):
-            return value
-        normalized: dict[str, list[JsonValue]] = {}
-        for k, v in value.items():
-            normalized[k] = as_list(v)
-        return normalized
+        return {k: as_list(v) for k, v in value.items()}
 
     @field_validator('prune', mode='before')
     @classmethod
     def _normalize_prune(cls, value):
-        if not value:
+        if not value or not isinstance(value, list) or isinstance(value[0], list):
             return value
-        if not isinstance(value, list):  # Let pydantic handle it
-            return value
-        if isinstance(value[0], list):  # [["a", "b"]]
-            return value
-        return [value]  # ["a", "b"] => [["a", "b"]]
+        return [value]
 
     @field_validator('to', mode='before')
     @classmethod
@@ -196,7 +165,7 @@ class Modify(Directive):
         if isinstance(value, list):
             if not value:
                 return value
-            if isinstance(value[0], int):
+            if all(isinstance(x, int) for x in value):
                 return [{'$index': value}]
             normalized = []
             for item in value:
@@ -219,24 +188,22 @@ class Modify(Directive):
         if is_object and is_array:
             raise SpecError('$if and $not cannot be used together with $to in $modify')
         if self.regex:
-            try:
-                _validate_clauses(self.if_)
-                _validate_clauses(self.not_)
-                if self.remove:
-                    for pattern in self.remove:
-                        validate_regex(pattern)
-                if self.drop:
-                    for field_patterns in self.drop.values():
-                        for p in field_patterns:
-                            if isinstance(p, str):
-                                validate_regex(p)
-                if self.prune:
-                    for path in self.prune:
-                        for step in path:
-                            validate_regex(step)
-            except RegexError as e:
-                raise SpecError(str(e)) from e
+            self._validate_modify_regex()
         return self
+
+    def _validate_modify_regex(self) -> None:
+        try:
+            validate_clauses(self.if_)
+            validate_clauses(self.not_)
+            validate_patterns(self.remove)
+            if self.drop:
+                for patterns in self.drop.values():
+                    validate_patterns(patterns)
+            if self.prune:
+                for path in self.prune:
+                    validate_patterns(path)
+        except RegexError as e:
+            raise SpecError(str(e)) from e
 
 
 class Replace(Directive):
@@ -261,8 +228,7 @@ class Replace(Directive):
     def _validate_replace(self):
         if self.regex:
             try:
-                for pattern in self.from_:
-                    validate_regex(pattern)
+                validate_patterns(self.from_)
             except RegexError as e:
                 raise SpecError(str(e)) from e
         return self
@@ -274,6 +240,14 @@ class QueryMode(StrEnum):
     PREPEND = 'prepend'
 
 
+def _normalize_string_list(value: Any, name: str) -> list[str]:
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, list) and value and all(isinstance(k, str) for k in value):
+        return value
+    raise SpecError(f"Invalid {name}: Expecting non-empty string or list of strings, got {value}")
+
+
 class QueryScope(Locator):
     model_config = _model_config
 
@@ -282,11 +256,7 @@ class QueryScope(Locator):
     @field_validator('scope', mode='before')
     @classmethod
     def _normalize_scope(cls, value: Any) -> list[str]:
-        if isinstance(value, str):
-            return [value]
-        if isinstance(value, list) and value and all(isinstance(k, str) for k in value):
-            return value
-        raise SpecError(f"Invalid $scope: Expecting non-empty string or list of strings, got {value}")
+        return _normalize_string_list(value, "$scope")
 
 
 class Query(Directive):
@@ -300,34 +270,19 @@ class Query(Directive):
     flatten: bool = Field(default=False, alias='$flatten')
     nullable: bool = Field(default=True, alias='$nullable')
 
-    @model_validator(mode='before')
-    @classmethod
-    def _normalize_aliases(cls, data: Any) -> Any:
-        if isinstance(data, dict):
-            data = dict(data)
-            if '$take' in data and '$pluck' not in data:
-                data['$pluck'] = data.pop('$take')
-            if '$give' in data and '$plant' not in data:
-                data['$plant'] = data.pop('$give')
-        return data
-
     @field_validator('pluck', 'plant', mode='before')
     @classmethod
     def _normalize_path(cls, value: Any) -> list[str]:
-        if isinstance(value, str):
-            return [value]
-        if isinstance(value, list) and value and all(isinstance(i, str) for i in value):
-            return value
-        raise SpecError(f"Field path must be a non-empty string or list of strings, got {value}")
+        return _normalize_string_list(value, "field path")
 
     @model_validator(mode='after')
     def _validate_query(self):
         if self.regex:
             try:
-                _validate_clauses(self.source.where)
-                _validate_clauses(self.source.not_)
-                _validate_clauses(self.destination.where)
-                _validate_clauses(self.destination.not_)
+                validate_clauses(self.source.where)
+                validate_clauses(self.source.not_)
+                validate_clauses(self.destination.where)
+                validate_clauses(self.destination.not_)
             except RegexError as e:
                 raise SpecError(str(e)) from e
         return self

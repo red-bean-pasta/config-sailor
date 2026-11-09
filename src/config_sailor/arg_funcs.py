@@ -14,11 +14,8 @@ from config_sailor.utils import json_helper, file_operator
 logger = logging.getLogger(__name__)
 
 
-def serve(
-        args: argparse.Namespace,
-        passthrough: list[str] | None = None
-) -> None:
-    service_starter.start(args, passthrough)
+def serve(args: argparse.Namespace) -> None:
+    service_starter.start(args)
 
 
 def build(args: argparse.Namespace) -> None:

@@ -14,20 +14,17 @@ _STATE_DIR_ENV = "STATE_DIR"
 _env_state_dir = os.getenv(_STATE_DIR_ENV)
 
 
-def parse_args() -> tuple[argparse.Namespace, list[str] | None]:
+def parse_args() -> argparse.Namespace:
     parser = _setup_parser()
-    parsed = parser.parse_known_args()
-    _validate_args(parsed, parser.error)
-    return parsed
+    args = parser.parse_args()
+    _validate_args(args, parser.error)
+    return args
 
 
 def _validate_args(
-        parse_result: tuple[argparse.Namespace, list[str] | None],
+        args: argparse.Namespace,
         error_raiser: Callable[[str], None],
 ) -> None:
-    args, passthrough = parse_result
-    if args.command != "serve" and passthrough:
-        error_raiser(f"{args.command}: Unrecognized arguments: {' '.join(passthrough)}")
     if args.command == "serve" and any(not d for d in (args.spec_dir, args.state_dir)):
         error_raiser(f"{args.command}: Parameters --spec-dir and --state-dir are required")
 
@@ -113,10 +110,7 @@ def _setup_serve_parser(subparsers):
     parser = subparsers.add_parser(
         "serve",
         help="Start the config patching service over HTTP or HTTPS",
-        epilog="""Anything behind a standalone '--' will be passed to uvicorn
-Example: 
-  %(prog)s -d /path/to/spec/dir -s /path/to/state/dir --port 8000 -- --worker 4 --log-level trace""",
-        formatter_class=argparse.RawTextHelpFormatter)
+    )
 
     config = parser.add_argument_group("Configuration")
     config.add_argument(
@@ -157,6 +151,16 @@ Defaults to ${_STATE_DIR_ENV}""")
         help="""Comma-separated list of proxy IPs whose forwarded headers are trusted
 Warning: Should only be used when running behind reverse proxies, such as Nginx or Caddy
 Defaults to FORWARDED_ALLOW_IPS else 127.0.0.1""")
+    network.add_argument(
+        "--ssl-keyfile",
+        default=os.getenv("SSL_KEYFILE"),
+        metavar="PATH",
+        help="Path to SSL key file for HTTPS. Defaults to $SSL_KEYFILE")
+    network.add_argument(
+        "--ssl-certfile",
+        default=os.getenv("SSL_CERTFILE"),
+        metavar="PATH",
+        help="Path to SSL certificate file for HTTPS. Defaults to $SSL_CERTFILE")
     network.add_argument(
         "--unsafe-mode",
         action='store_true', default=False,

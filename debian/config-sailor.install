@@ -1,5 +1,3 @@
-data/config-sailor      usr/bin/
-
 data/config-sailor.env    etc/config-sailor/
 
 data/base.enc    etc/config-sailor/

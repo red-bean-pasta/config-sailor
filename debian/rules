@@ -1,10 +1,34 @@
 #!/usr/bin/make -f
 
-export DH_VIRTUALENV_INSTALL_ROOT=/opt
-export DH_VIRTUALENV_PACKAGE_NAME=config-sailor
+.ONESHELL:
+SHELL = /bin/bash
+.SHELLFLAGS = -ec
 
 %:
-	dh $@ --with python-virtualenv
+	dh $@
+
+override_dh_auto_build:
+	if command -v uv >/dev/null 2>&1; then
+		echo "Building with uv..."
+		uv venv .build-venv
+		uv pip install --python .build-venv/bin/python pyinstaller .
+	else
+		echo "Building with python3 -m venv..."
+		python3 -m venv .build-venv
+		.build-venv/bin/pip install --upgrade pip
+		.build-venv/bin/pip install pyinstaller .
+	fi
+	.build-venv/bin/pyinstaller --onefile --clean --name config-sailor src/config_sailor/__main__.py
+	rm -rf .build-venv
+
+override_dh_auto_install:
+	install -d debian/config-sailor/usr/bin
+	install -m 755 dist/config-sailor debian/config-sailor/usr/bin/config-sailor
+	dh_auto_install
 
 override_dh_installsystemd:
 	dh_installsystemd --no-start --no-enable
+
+override_dh_auto_clean:
+	dh_auto_clean
+	rm -rf build dist .build-venv *.spec

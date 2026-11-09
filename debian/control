@@ -5,17 +5,16 @@ Maintainer: red-bean-pasta <red-bean-pasta@outlook.com>
 Homepage: https://github.com/red-bean-pasta/config-sailor
 Build-Depends:
  debhelper-compat (= 13),
- dh-python,
- dh-virtualenv,
  python3,
- python3-venv
+ python3-venv,
+ python3-pip
 Standards-Version: 4.7.3
 Rules-Requires-Root: no
 
 Package: config-sailor
-Architecture: all
+Architecture: any
 Depends:
- python3,
+ ${shlibs:Depends},
  ${misc:Depends}
 Description: JSON config distribution service with rule-based patching
  config-sailor distributes JSON configuration from an encrypted base

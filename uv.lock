@@ -173,7 +173,7 @@ wheels = [
 
 [[package]]
 name = "config-sailor"
-version = "0.5.0"
+version = "0.6.0"
 source = { editable = "." }
 dependencies = [
     { name = "argon2-cffi" },

@@ -15,6 +15,7 @@ Rules-Requires-Root: no
 Package: config-sailor
 Architecture: all
 Depends:
+ python3,
  ${misc:Depends}
 Description: JSON config distribution service with rule-based patching
  config-sailor distributes JSON configuration from an encrypted base
